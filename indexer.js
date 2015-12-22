@@ -1,8 +1,8 @@
-
-var program = require('commander'),
+	var program = require('commander'),
 	fs = require('fs'),
+	tituloTOC = "# Tabla de contenidos \t \n",
 	index = [1],
-	depth,
+		depth,
 	inFile;
 
 function parseArguments(){
@@ -20,18 +20,31 @@ function generateToc(){
 	var out = getOutputStream(fs);
 	inFile = program.rawArgs[program.rawArgs.length -1 ];
 	getLines(inFile,function(err,lines){
-		linesParsed = parse(lines);
-		out.write(linesParsed);
-		for ( i = 0; i < lines.length ; i++)
-			out.write(lines[i] + "\n");
-		move();
+		if (alreadyTOC(lines[0])){
+			return;
+		}else{
+			linesParsed = parse(lines);
+			out.write(linesParsed);
+			for ( i = 0; i < lines.length ; i++){
+				out.write(lines[i] + "\n");
+			}
+			move();
+		}
 	});
 }
 
+function alreadyTOC(line){
+	if (line.search("Tabla") != -1 || line.search("indice") != -1 || line.search("índice") != -1)
+		return true;
+	return false;
+}
+
 function parse(lines){
-	var linesParsed = "";
+	var linesParsed = tituloTOC;
 	for (i = 0 ; i<lines.length ; i++){
 		depth = getDepth(lines[i]);
+		if (depth == 0 )
+			continue;
 		linesParsed += Array(depth+1).join("\t") + lines[i].substr(lines[i].lastIndexOf("#")+2) + '\n';
 	}
 	return linesParsed;
@@ -64,6 +77,8 @@ function getOutputStream(fs){
 }
 
 function generateIndex(maxDepth){ 
+	var oldIndex ; 
+	var lineWithDepth;
 	out = getOutputStream(fs);
 	inFile = program.rawArgs[program.rawArgs.length -1 ];
 	getLines(inFile,function(err,lines){
@@ -72,8 +87,10 @@ function generateIndex(maxDepth){
 			if (depth != 0 )
 				oldDepth = depth;
 			depth = getDepth(line);
-			if (depth == 0)
+			if (depth == 0){
+				out.write(line+"\n");
 				continue;
+			}
 			indexFormatted = "";
 			if (depth <= maxDepth)
 				indexFormatted = getIndex(depth,oldDepth,index);
@@ -101,9 +118,15 @@ function getIndex(depth,oldDepth,index){
 }
 
 function getHeading(line,depth,indexFormatted){
-	heading = Array(depth+1).join("#");
-	headingName = line.substring(line.lastIndexOf("#")+1);
-	lineWithDepth = line.replace(line, heading.concat(indexFormatted).concat("    ").concat(headingName));
+	var lineWithDepth;
+	var oldIndex = line.search(indexFormatted) ;
+	if (oldIndex != -1 && line.lastIndexOf("#") + 1 == oldIndex - 1){
+		lineWithDepth = line;
+	}else{
+		var heading = Array(depth+1).join("#") + " " ;
+		var headingName = line.substring(line.lastIndexOf("#")+1);
+		lineWithDepth = line.replace(line, heading.concat(indexFormatted).concat("    ").concat(headingName));
+	}
 	return lineWithDepth;
 }
 
